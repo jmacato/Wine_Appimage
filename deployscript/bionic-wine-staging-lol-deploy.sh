@@ -1,5 +1,6 @@
 #!/bin/bash
 # Pre install
+export DEBIAN_FRONTEND=noninteractive
 dpkg --add-architecture i386
 apt update
 apt install -y aptitude wget file bzip2 gcc-multilib software-properties-common
