@@ -6,18 +6,78 @@ export LD_LIBRARY_PATH="$HERE/usr/lib/i386-linux-gnu":$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH="$HERE/lib":$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH="$HERE/lib/i386-linux-gnu":$LD_LIBRARY_PATH
 
-#Sound Library
+# Sound Library
 export LD_LIBRARY_PATH="$HERE/usr/lib/i386-linux-gnu/pulseaudio":$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH="$HERE/usr/lib/i386-linux-gnu/alsa-lib":$LD_LIBRARY_PATH
 
-#Font Config
+# libGL drivers
+export LIBGL_DRIVERS_PATH="$HERE/usr/lib/i386-linux-gnu/dri":$LIBGL_DRIVERS_PATH
+
+# Font Config
 export FONTCONFIG_PATH="$HERE/etc/fonts"
 
-#LD
+# LD
 export WINELDLIBRARY="$HERE/lib/ld-linux.so.2"
 
-if [ -n "$*" ] ; then
-    LD_PRELOAD="$HERE/bin/libhookexecv.so" "$WINELDLIBRARY" "$HERE/bin/$@" | cat
+# Workaround for: wine: loadlocale.c:129: _nl_intern_locale_data:
+# Assertion `cnt < (sizeof (_nl_value_type_LC_TIME) / sizeof (_nl_value_type_LC_TIME[0]))' failed.
+export LC_ALL=C LANGUAGE=C LANG=C
+
+# Wine env
+export WINEVERPATH=${WINEVERPATH:-"$HERE"}
+export PATH=${WINEVERPATH}/bin:$PATH 
+export WINESERVER=${WINEVERPATH}/bin/wineserver
+export WINELOADER=${WINEVERPATH}/bin/wine
+export WINEDLLPATH=${WINEVERPATH}/lib/wine/fakedlls
+export WINEARCH=win32
+export WINEPREFIX=${WINEPREFIX:-"$HOME/.wine"}
+export WINEDEBUG=${WINEDEBUG:-"fixme-all"}
+export WINEESYNC=${WINEESYNC:-"0"}
+
+# DXVK env
+export DXVK_HUD=${DXVK_HUD:-"1"}
+export DXVK_LOG_LEVEL=${DXVK_LOG_LEVEL:-"none"}
+
+#
+# FIXME: find better workaround for this.
+#
+# Load vulkan icd files as per vendor
+#
+checkdri=$(cat /var/log/Xorg.0.log | grep -e "DRI driver:" | awk '{print $8}')
+
+if [ "$checkdri" = "i965" ]; then
+    export VK_ICD_FILENAMES=${VK_ICD_FILENAMES:-"$HERE/usr/share/vulkan/icd.d/intel_icd.i686.json"}
+elif [ "$checkdri" = "radeonsi" ]; then
+    export VK_ICD_FILENAMES=${VK_ICD_FILENAMES:-"$HERE/usr/share/vulkan/icd.d/radeon_icd.i686.json"}
+fi
+
+# Load winecfg if no arguments given
+APPLICATION=""
+if [ -z "$*" ] ; then
+  APPLICATION="winecfg"
+fi
+
+# Allow the AppImage to be symlinked to e.g., /usr/bin/wineserver
+if [ ! -z $APPIMAGE ] ; then
+  BINARY_NAME=$(basename "$ARGV0")
 else
-    LD_PRELOAD="$HERE/bin/libhookexecv.so" "$WINELDLIBRARY" "$HERE/bin/wine" "$@" | cat
+  BINARY_NAME=$(basename "$0")
+fi
+
+if [ ! -z "$1" ] && [ -e "$HERE/bin/$1" ] ; then
+  MAIN="$HERE/bin/$1" ; shift
+elif [ ! -z "$1" ] && [ -e "$HERE/usr/bin/$1" ] ; then
+  MAIN="$HERE/usr/bin/$1" ; shift
+elif [ -e "$HERE/bin/$BINARY_NAME" ] ; then
+  MAIN="$HERE/bin/$BINARY_NAME"
+elif [ -e "$HERE/usr/bin/$BINARY_NAME" ] ; then
+  MAIN="$HERE/usr/bin/$BINARY_NAME"
+else
+  MAIN="$HERE/bin/wine"
+fi
+
+if [ -z "$APPLICATION" ] ; then
+  LD_PRELOAD="$HERE/bin/libhookexecv.so" "$WINELDLIBRARY" "$MAIN" "$@" | cat
+else
+  LD_PRELOAD="$HERE/bin/libhookexecv.so" "$WINELDLIBRARY" "$MAIN" "$APPLICATION" | cat
 fi

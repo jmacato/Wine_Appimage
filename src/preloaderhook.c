@@ -19,7 +19,6 @@
  * hook int 0x80 open syscall. use special ld.so
  * */
 
-
 #define LONGSIZE sizeof(long)
 #define TARGET_PATH "/lib/ld-linux.so.2"
 #define HasZeroByte(v) ~((((v & 0x7F7F7F7F) + 0x7F7F7F7F) | v) | 0x7F7F7F7F)
